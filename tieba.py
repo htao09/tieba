@@ -4,6 +4,13 @@ import urllib
 import re
 import gevent
 from log import Log
+import multiprocessing
+import multiprocessing.managers
+import random,time
+import Queue
+
+class QueueManage(multiprocessing.managers.BaseManager):
+    pass
 
 log = Log().logger
 
@@ -123,22 +130,53 @@ def getmailsfromurllist(urllist,file):
     # return emaillist
 
 
+if __name__=="__main__":
+    QueueManage.register("get_task")  # 注册函数给客户端调用
+    QueueManage.register("get_result")
+    manager = QueueManage(address=("192.168.137.1", 8848), authkey="123456")  # 创建一个管理器设置地址，密码
+    manager.connect()#连接服务器
+    task = manager.get_task()
+    result = manager.get_result()
+    print "-------------"
+    try:
+        name=task.get()
+        print "-------------"
+        print name
+        tiebalist = gettiebalist(name)
+        print tiebalist
+        subtiebalist = [[], [], [], [], [], [], [], [], [], []]
+        N = len(subtiebalist)
+        savefilepath = name + ".txt"
+        savefile = open(savefilepath, "wb")
+        for i in range(len(tiebalist)):
+            subtiebalist[i % N].append(tiebalist[i])
+        tasklist = []
+        for i in range(N):
+            log.debug(subtiebalist[i])
+            print subtiebalist[i]
+            tasklist.append(gevent.spawn(getmailsfromurllist(subtiebalist[i], savefile)))
+        gevent.joinall(tasklist)
+        savefile.close()
+        result.put(name)
+    except:
+        print "111111111-------------"
+        pass
 
-savefilepath="python.txt"
-savefile=open(savefilepath,"wb")
-tiebalist = gettiebalist("python")
-print tiebalist
-subtiebalist=[[],[],[],[],[],[],[],[],[],[]]
-N=len(subtiebalist)
-for i in range(len(tiebalist)):
-    subtiebalist[i%N].append(tiebalist[i])
-tasklist=[]
-for i in range(N):
-    log.debug(subtiebalist[i])
-    print subtiebalist[i]
-    tasklist.append(gevent.spawn(getmailsfromurllist(subtiebalist[i],savefile)))
-gevent.joinall(tasklist)
-savefile.close()
+# savefilepath="python.txt"
+# savefile=open(savefilepath,"wb")
+# tiebalist = gettiebalist("python")
+# print tiebalist
+# subtiebalist=[[],[],[],[],[],[],[],[],[],[]]
+# N=len(subtiebalist)
+# for i in range(len(tiebalist)):
+#     subtiebalist[i%N].append(tiebalist[i])
+# tasklist=[]
+# for i in range(N):
+#     log.debug(subtiebalist[i])
+#     print subtiebalist[i]
+#     tasklist.append(gevent.spawn(getmailsfromurllist(subtiebalist[i],savefile)))
+# gevent.joinall(tasklist)
+# savefile.close()
 
 #
 # for url in tiebalist:
